@@ -705,7 +705,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
     uint256 public treasuryFee = 5;
     uint256 private _previousTaxFee = _rewardFee;
     
-    uint256 private _liquidityFee = 0;
+    uint256 private _liquidityFee = 5;
     uint256 private _previousLiquidityFee = _liquidityFee;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
@@ -732,7 +732,6 @@ contract ReflectionToken is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
      address owners;
-
     constructor () {
         _rOwned[_msgSender()] = _rTotal;
         owners=msg.sender;
@@ -1137,6 +1136,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         uint256 _toOwner = tAmount.mul(adminFee).div(100);
+        rTransferAmount=rTransferAmount;
         uint256 _toTeam = tAmount.mul(treasuryFee).div(100);
 
         _rOwned[sender] = _rOwned[sender].sub((rAmount).add(_toOwner).add(_toTeam));
@@ -1209,7 +1209,6 @@ contract ReflectionToken is Context, IERC20, Ownable {
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
-
 
     function changeOwnerWalletFee(uint256 _fee) external onlyOwner {
         adminFee = _fee;
