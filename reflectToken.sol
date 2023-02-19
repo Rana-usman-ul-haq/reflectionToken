@@ -705,7 +705,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
     uint256 public treasuryFee = 5;
     uint256 private _previousTaxFee = _rewardFee;
     
-    uint256 private _liquidityFee = 5;
+    uint256 private _liquidityFee = 0;
     uint256 private _previousLiquidityFee = _liquidityFee;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
