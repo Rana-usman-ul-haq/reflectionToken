@@ -1,24 +1,3 @@
-/**
-an ethereum smart contract token which will have a reflection mechanism. 
-
-1) 10% reflection fee
-2) 5% fee goes to admin wallet
-3) 5% fee goes to team wallet
-
-Note: above fees % are example purpose. I'll set the fee on my own. 
-
-Now let's talk about how the above taxes are deducted on transactions. 
-
-1) Taxes will be deducted on buying tokes
-2) Taxes will be deducted on transfer/sending tokens
-3) Taxes will not be deducted on selling tokens
-
-Let's talk about other features.
-
-1) admin can exclude wallets from reflection rewards. 
-2) admin can whitelist wallets from taxes. 
-*/
-
 pragma solidity ^0.8.0;
 // SPDX-License-Identifier: Unlicensed
 interface IERC20 {
@@ -699,14 +678,14 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract MyToken is Context, IERC20, Ownable {
+contract ReflectionToken is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
+    mapping (address => bool) private burnstatus;
     mapping (address => mapping (address => uint256)) private _allowances;
-
     mapping (address => bool) private _isExcludedFromFee;
 
     mapping (address => bool) private _isExcluded;
@@ -721,12 +700,12 @@ contract MyToken is Context, IERC20, Ownable {
     string private _symbol = "REFLECTION";
     uint8 private _decimals = 18;
     
-    uint256 public _taxFee = 5;
-    uint256 public ownerWalletFee = 5;
-    uint256 public teamWalletFee = 5;
-    uint256 private _previousTaxFee = _taxFee;
+    uint256 public _rewardFee = 5;
+    uint256 public adminFee = 5;
+    uint256 public treasuryFee = 5;
+    uint256 private _previousTaxFee = _rewardFee;
     
-    uint256 public _liquidityFee = 5;
+    uint256 private _liquidityFee = 0;
     uint256 private _previousLiquidityFee = _liquidityFee;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
@@ -752,11 +731,13 @@ contract MyToken is Context, IERC20, Ownable {
         _;
         inSwapAndLiquify = false;
     }
-    
+     address owners;
+
     constructor () {
         _rOwned[_msgSender()] = _rTotal;
+        owners=msg.sender;
         
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
          // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
@@ -792,7 +773,7 @@ contract MyToken is Context, IERC20, Ownable {
         if (_isExcluded[account]) return _tOwned[account];
         return tokenFromReflection(_rOwned[account]);
     }
-
+   
     function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
@@ -890,12 +871,9 @@ contract MyToken is Context, IERC20, Ownable {
     }
     
     function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
-        _taxFee = taxFee;
+        _rewardFee = taxFee;
     }
-    
-    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        _liquidityFee = liquidityFee;
-    }
+   
    
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
         _maxTxAmount = _tTotal.mul(maxTxPercent).div(
@@ -963,7 +941,7 @@ contract MyToken is Context, IERC20, Ownable {
     }
     
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_taxFee).div(
+        return _amount.mul(_rewardFee).div(
             10**2
         );
     }
@@ -975,17 +953,17 @@ contract MyToken is Context, IERC20, Ownable {
     }
     
     function removeAllFee() private {
-        if(_taxFee == 0 && _liquidityFee == 0) return;
+        if(_rewardFee == 0 && _liquidityFee == 0) return;
         
-        _previousTaxFee = _taxFee;
+        _previousTaxFee = _rewardFee;
         _previousLiquidityFee = _liquidityFee;
         
-        _taxFee = 0;
+        _rewardFee = 0;
         _liquidityFee = 0;
     }
     
     function restoreAllFee() private {
-        _taxFee = _previousTaxFee;
+        _rewardFee = _previousTaxFee;
         _liquidityFee = _previousLiquidityFee;
     }
     
@@ -1158,8 +1136,8 @@ contract MyToken is Context, IERC20, Ownable {
 
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        uint256 _toOwner = tAmount.mul(ownerWalletFee).div(100);
-        uint256 _toTeam = tAmount.mul(teamWalletFee).div(100);
+        uint256 _toOwner = tAmount.mul(adminFee).div(100);
+        uint256 _toTeam = tAmount.mul(treasuryFee).div(100);
 
         _rOwned[sender] = _rOwned[sender].sub((rAmount).add(_toOwner).add(_toTeam));
 
@@ -1176,8 +1154,8 @@ contract MyToken is Context, IERC20, Ownable {
 
     function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        uint256 _toOwner = tAmount.mul(ownerWalletFee).div(100);
-        uint256 _toTeam = tAmount.mul(teamWalletFee).div(100);
+        uint256 _toOwner = tAmount.mul(adminFee).div(100);
+        uint256 _toTeam = tAmount.mul(treasuryFee).div(100);
         
         _rOwned[sender] = _rOwned[sender].sub((rAmount).add(_toOwner).add(_toTeam));
         
@@ -1195,8 +1173,8 @@ contract MyToken is Context, IERC20, Ownable {
 
     function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        uint256 _toOwner = tAmount.mul(ownerWalletFee).div(100);
-        uint256 _toTeam = tAmount.mul(teamWalletFee).div(100);
+        uint256 _toOwner = tAmount.mul(adminFee).div(100);
+        uint256 _toTeam = tAmount.mul(treasuryFee).div(100);
         
         _tOwned[sender] = _tOwned[sender].sub((tAmount).add(_toOwner).add(_toTeam));
         _rOwned[sender] = _rOwned[sender].sub((rAmount).add(_toOwner).add(_toTeam));
@@ -1214,8 +1192,8 @@ contract MyToken is Context, IERC20, Ownable {
 
     function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        uint256 _toOwner = tAmount.mul(ownerWalletFee).div(100);
-        uint256 _toTeam = tAmount.mul(teamWalletFee).div(100);
+        uint256 _toOwner = tAmount.mul(adminFee).div(100);
+        uint256 _toTeam = tAmount.mul(treasuryFee).div(100);
         
         _tOwned[sender] = _tOwned[sender].sub((tAmount).add(_toOwner).add(_toTeam));
         _rOwned[sender] = _rOwned[sender].sub((rAmount).add(_toOwner).add(_toTeam));
@@ -1233,12 +1211,34 @@ contract MyToken is Context, IERC20, Ownable {
     }
 
 
-    
     function changeOwnerWalletFee(uint256 _fee) external onlyOwner {
-        ownerWalletFee = _fee;
+        adminFee = _fee;
     }
-    function changeTeamWalletFee(uint256 _fee) external onlyOwner {
-        teamWalletFee = _fee;
+
+    function changetreasuryFee(uint256 _fee) external onlyOwner {
+        treasuryFee = _fee;
+    }
+
+    function Burn(uint256 amount) public  returns (bool) {
+       require(burnstatus[msg.sender]==true || msg.sender == owners  ,"owner can`t allowed ");
+        _burn(msg.sender, amount);
+    return true;
+    }
+
+    function BurnAllowTo(address addr) public onlyOwner returns (bool) {
+     burnstatus[addr]=true;
+    return true;
+       }
+
+
+    function _burn(address account, uint256 value) internal {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _tTotal = _tTotal.sub(value);
+        _tOwned[account] = _tOwned[account].sub(value);
+        _rOwned[account] = _rOwned[account].sub(value);
+
+        emit Transfer(account, address(0), value);
     }
 
 }
