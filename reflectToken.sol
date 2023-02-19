@@ -692,7 +692,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
     address[] private _excluded;
    
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000 * 10**6 * 10**9;
+    uint256 private _tTotal = 1000000000 * 10**18; //total supply
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -710,13 +710,13 @@ contract ReflectionToken is Context, IERC20, Ownable {
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
-    address public teamWallet;
+    address public teamWallet; // put wallet address after putting = sign
     
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
     
-    uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
-    uint256 private numTokensSellToAddToLiquidity = 500000 * 10**6 * 10**9;
+    uint256 public _maxTxAmount = 5000000 * 10**18;
+    uint256 private numTokensSellToAddToLiquidity = 500000 * 10**18;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -1212,6 +1212,10 @@ contract ReflectionToken is Context, IERC20, Ownable {
 
     function changeOwnerWalletFee(uint256 _fee) external onlyOwner {
         adminFee = _fee;
+    }
+
+    function changeTreasuryWallet(address _wallet) external onlyOwner{
+        teamWallet = _wallet;
     }
 
     function changetreasuryFee(uint256 _fee) external onlyOwner {
