@@ -30,7 +30,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
     uint8 private _decimals = 18;
     
     uint256 public _rewardFee = 5;
-    uint256 public adminFee = 5;
+    uint256 public teamFee = 5;
     uint256 public treasuryFee = 5;
     uint256 private _previousTaxFee = _rewardFee;
     
@@ -392,7 +392,7 @@ contract ReflectionToken is Context, IERC20, Ownable {
             removeAllFee();
 
         if(recipient != uniswapV2Pair){
-            uint256 _toteamWallet = amount.mul(adminFee).div(100);
+            uint256 _toteamWallet = amount.mul(teamFee).div(100);
             uint256 _toTeam = amount.mul(treasuryFee).div(100);
 
             // (uint256 _toadminrAmount,,,,,) = _getValues(_toteamWallet);
@@ -493,10 +493,10 @@ contract ReflectionToken is Context, IERC20, Ownable {
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
-    function changeOwnerWalletFee(uint256 _fee) external onlyOwner {
-        adminFee = _fee;
+    function changeTeamWalletFee(uint256 _fee) external onlyOwner {
+        teamFee = _fee;
     }
-    function changetreasuryFee(uint256 _fee) external onlyOwner {
+    function changeTreasuryFee(uint256 _fee) external onlyOwner {
         treasuryFee = _fee;
     }
 
